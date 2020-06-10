@@ -7,6 +7,7 @@ MQTT_PORT = 1883
 
 client = None
 
+
 def mqtt_setup():
     global client
     client = mqtt.Client()

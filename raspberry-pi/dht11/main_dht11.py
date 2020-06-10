@@ -12,7 +12,7 @@ def main():
                ("2", board.D17),
                ("3", board.D22),
                ("4", board.D23))
-    global devices
+    global dht_devices
     for hive, sensor in sensors:
         dht_device = adafruit_dht.DHT11(sensor)
         dht_devices.append( (hive,dht_device) )
