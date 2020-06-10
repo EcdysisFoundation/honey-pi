@@ -1,10 +1,13 @@
 import json, time, board, adafruit_dht
 import os, pickle
+import traceback
+
 from mqtt.mqtt_setup import mqtt_setup, publish_sensor_data
 import RPi.GPIO as GPIO  # import GPIO
 from HX711_Python3.hx711 import HX711  # import the class HX711
 
-PALLET = os.getenv('PALLET_NUMBER')
+PALLET = int(os.getenv('PALLET_NUMBER'))
+swap_file_name = 'hx711_calibration.swp'
 
 SAMPLE_INTERVAL = 2
 client = mqtt_setup()
@@ -14,6 +17,9 @@ hx711_devices = list()
 def main():
     # Setup the hx711 sensors
     # Hive, DOUT, SCK
+    client.on_message = on_message
+    client.subscribe("honey_pi/hx711/calibrate/#", qos=1)
+
     startup()
 
     next_reading = time.time()
@@ -30,26 +36,24 @@ def read_sensor():
     sensor_data['timestamp'] = int(round(time.time() * 1000))
     sensor_data['pallet'] = PALLET
 
-    for hive, dout, sck in hx711_sensors:
-        sensor_data = dict()
+    for hive, hx711 in hx711_devices:
         for attempt in range(10):
             error_log = list()
             try:
                 GPIO.setmode(GPIO.BCM)  # set GPIO pin mode to BCM numbering
-                hx = HX711(dout_pin=dout, pd_sck_pin=sck)
-                data = (hx.get_raw_data_mean())
-                GPIO.cleanup()  # clean up any ports I'm using in this program
+                data_kg = (hx711.get_weight_mean(1))
+                data_raw = (hx711.get_raw_data_mean(1))
 
             except RuntimeError as error:
                 error_log.append(error.args[0])
             else:
                 # Sucessfully got the data
                 sensor_data['timestamp'] = int(round(time.time() * 1000))
-                sensor_data['weight_raw'] = data
-                sensor_data['weight_cal'] =
+                sensor_data['weight_raw'] = data_raw
+                sensor_data['weight_cal_kg'] = data_kg
                 sensor_data['pallet'] = PALLET
-                sensor_data['hive_local'] = hive
-                sensor_data['hive_global'] = ((PALLET - 1)*4) + hive
+                sensor_data['hive_local'] = int(hive)
+                sensor_data['hive_global'] = ((PALLET - 1)*4) + int(hive)
 
                 publish_sensor_data("honey_pi/hx711", sensor_data)
                 break
@@ -59,21 +63,22 @@ def read_sensor():
 
 
 def startup():
-    global hx711_sensors
-    hx711_sensors = (("1", 5, 6),
-                     ("2", 5, 6),
-                     ("3", 5, 6),
-                     ("4", 5, 6))
     global hx711_devices
+    # This will be ignored if there is a swap file.
+    hx711_sensors = (("1", 5, 6),
+                     ("2", 16, 6),
+                     ("3", 26, 6),
+                     ("4", 25, 6))
+
     for hive, dout, sck in hx711_sensors:
         hx_device = HX711(dout_pin=dout, pd_sck_pin=sck)
         hx711_devices.append((hive, hx_device))
 
     # Check if we have swap file (calibration) if not, we do not have any calibration.
-    swap_file_name = 'hx711_calibration.swp'
     if os.path.isfile(swap_file_name):
+        print('calibration file found')
         with open(swap_file_name, 'rb') as swap_file:
-            hx711_sensors = pickle.load(swap_file)
+            hx711_devices = pickle.load(swap_file)
             # now we loaded the state before the Pi restarted.
     else:
         # There is no swap file. Push an error.
@@ -84,15 +89,51 @@ def startup():
         publish_sensor_data("honey_pi/errors", error_data)
 
 
+
 def calibrate_zero_weight():
     # This routine is called when we receive a message from
-    # honey_pi/hx711/calibrate/PALLET/
-    pass
+    # honey_pi/hx711/calibrate/PALLET/zero
+    for hive, hx in hx711_devices:
+        err = hx.zero()
+        if err:
+            raise print('Tare is unsuccessful.')
 
-def calibrate_known_weight():
+
+def calibrate_known_weight(weight_kg):
     # after calibrating the known weight, save the swap file.
-    # Then reload the 'startup' routine to set the file approperately.
+    # Then reload the 'startup' routine to set the file appropriately.
+    # honey/pi/hx711/calibrate/pallet/weight --> weight
+    for hive, hx in hx711_devices:
+        reading = hx.get_data_mean(1)
+        ratio = reading / weight_kg
+        hx.set_scale_ratio(ratio)
+    print('Saving the HX711 state to swap file on persistant memory')
+    with open(swap_file_name, 'wb') as swap_file:
+        pickle.dump(hx711_devices, swap_file)
+        swap_file.flush()
+        os.fsync(swap_file.fileno())
+        # you have to flush, fsynch and close the file all the time.
+        # This will write the file to the drive. It is slow but safe.
+    print('startup')
+    startup()
 
+
+def on_message(client, userdata, msg):
+    try:
+        if msg.topic == "honey_pi/hx711/calibrate/pallet/" + str(PALLET) + "/zero":
+            print("zero message received")
+            calibrate_zero_weight()
+            print("zeroing complete")
+        elif msg.topic == "honey_pi/hx711/calibrate/pallet/" + str(PALLET) + "/weight_kg":
+            print("weight_kg message received")
+            calibrate_known_weight(int(msg.payload))
+            print("weight_kg complete")
+        else:
+            #ignore
+            pass
+    except:
+        traceback.print_exc()
+        quit(0)
 
 
 if __name__ == '__main__':
