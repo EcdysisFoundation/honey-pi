@@ -9,9 +9,10 @@ dht_devices = list()
 def main():
     # Setup the DHT11 sensors
     sensors = (("1", board.D27),
-               ("2", board.D17),
-               ("3", board.D22),
-               ("4", board.D23))
+               #("2", board.D17),
+               #("3", board.D22),
+               ("4", board.D23),
+               )
     global dht_devices
     for hive, sensor in sensors:
         dht_device = adafruit_dht.DHT11(sensor)

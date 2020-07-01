@@ -5,7 +5,7 @@ import traceback
 from mqtt.mqtt_setup import mqtt_setup, publish_sensor_data
 import RPi.GPIO as GPIO  # import GPIO
 from HX711_Python3.hx711 import HX711  # import the class HX711
-
+from statistics import StatisticsError
 PALLET = int(os.getenv('PALLET_NUMBER'))
 swap_file_name = 'hx711_calibration.swp'
 
@@ -41,10 +41,13 @@ def read_sensor():
             error_log = list()
             try:
                 GPIO.setmode(GPIO.BCM)  # set GPIO pin mode to BCM numbering
-                data_kg = (hx711.get_weight_mean(1))
-                data_raw = (hx711.get_raw_data_mean(1))
+                data_kg = (hx711.get_weight_mean(5))
+                data_raw = (hx711.get_raw_data_mean(5))
 
             except RuntimeError as error:
+                error_log.append(error.args[0])
+            except StatisticsError as error:
+                print("Could not get data for hive number " + str(hive))
                 error_log.append(error.args[0])
             else:
                 # Sucessfully got the data
@@ -68,7 +71,8 @@ def startup():
     hx711_sensors = (("1", 5, 6),
                      ("2", 16, 6),
                      ("3", 26, 6),
-                     ("4", 25, 6))
+                    # ("4", 25, 6)
+                     )
 
     for hive, dout, sck in hx711_sensors:
         hx_device = HX711(dout_pin=dout, pd_sck_pin=sck)
@@ -90,23 +94,28 @@ def startup():
 
 
 
-def calibrate_zero_weight():
+def calibrate_zero_weight(hive_num):
     # This routine is called when we receive a message from
     # honey_pi/hx711/calibrate/PALLET/zero
-    for hive, hx in hx711_devices:
-        err = hx.zero()
-        if err:
-            raise print('Tare is unsuccessful.')
+    #for hive, hx in hx711_devices:
+    #    err = hx.zero()
+    #    if err:
+    #        raise print('Tare is unsuccessful.')
+    hive, hx =  hx711_devices[int(hive_num)]
+    err = hx.zero()
+    if err:
+        raise print('Tare is unsucessful for hive' + str(hive_num))
 
-
-def calibrate_known_weight(weight_kg):
+def calibrate_known_weight(weight_kg, hive_num):
     # after calibrating the known weight, save the swap file.
     # Then reload the 'startup' routine to set the file appropriately.
     # honey/pi/hx711/calibrate/pallet/weight --> weight
-    for hive, hx in hx711_devices:
-        reading = hx.get_data_mean(1)
-        ratio = reading / weight_kg
-        hx.set_scale_ratio(ratio)
+    #for hive, hx in hx711_devices:
+    #    reading = hx.get_data_mean(1)
+    #    ratio = reading / weight_kg
+    #    hx.set_scale_ratio(ratio)
+    
+
     print('Saving the HX711 state to swap file on persistant memory')
     with open(swap_file_name, 'wb') as swap_file:
         pickle.dump(hx711_devices, swap_file)
@@ -122,11 +131,11 @@ def on_message(client, userdata, msg):
     try:
         if msg.topic == "honey_pi/hx711/calibrate/pallet/" + str(PALLET) + "/zero":
             print("zero message received")
-            calibrate_zero_weight()
-            print("zeroing complete")
+            calibrate_zero_weight(int(msg.payload))
         elif msg.topic == "honey_pi/hx711/calibrate/pallet/" + str(PALLET) + "/weight_kg":
             print("weight_kg message received")
-            calibrate_known_weight(int(msg.payload))
+            hive_num = int(msg.payload)
+            calibrate_known_weight(32, hive_num)
             print("weight_kg complete")
         else:
             #ignore

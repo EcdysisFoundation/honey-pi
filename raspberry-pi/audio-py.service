@@ -1,0 +1,21 @@
+# copy this file to /lib/systemd/system/ directory
+# https://websofttechs.com/tutorials/how-to-setup-python-script-autorun-in-ubuntu-18-04/
+[Unit]
+Description=Audio recording for Hive Pi.
+After=multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/ws/
+#PYTHONPATH=/home/pi/ws/
+#PALLET_NUMBER=1
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/ws/audio/main_usbaudio.py
+EnvironmentFile=/home/pi/ws/environment.conf
+StandardInput=tty-force
+#Restart=always
+StandardOutput=syslog+console
+StandardError=syslog+console
+[Install]
+WantedBy=multi-user.target
