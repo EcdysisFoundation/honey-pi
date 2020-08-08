@@ -33,15 +33,19 @@ Currently the following sensors are being evaluated:
 
 ### Wiring & Hardware
 
-
+Detailed software and hardware wiring can be found in raspberry-pi directory.
 
 ### Software
 
-There is one python application (integrated as a service) that controls recording sensor data. It manages sleeping and submits data to the MQTT server using the PAHO library.
+The raspberry-pi runs three seperate services for recording data, one for each type of sensor.
 
-Consider using docker / upswift / k8s for rapid deployment. 
+The services need to be enabled by:
 
-Q: How to differentiate between each device? UID ? MAC Address ? File on the SD Card? **TBD**.
+```
+sudo systemctl enable audio-py.service
+sudo systemctl enable dht11-py.service
+sudo systemctl enable hx711-py.service
+```
 
 
 
@@ -65,7 +69,7 @@ Hive Pi logs sensor data on a device / pallet / sensor hierarchy.
 Example topics are:
 
 ```
-/hive-pi/pallet_1/hive_2/temp
+/hive-pi/pallet/PALLET/temp
                         /humidity
                         /weight
                         /audio

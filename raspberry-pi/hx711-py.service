@@ -1,0 +1,19 @@
+# copy this file to /lib/systemd/system/ directory
+# https://websofttechs.com/tutorials/how-to-setup-python-script-autorun-in-ubuntu-18-04/
+[Unit]
+Description=Weight recording for Honey Pi
+After=multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/ws/
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/ws/hx711/main_hx711.py
+EnvironmentFile=/home/pi/ws/environment.conf
+StandardInput=tty-force
+Restart=always
+StandardOutput=syslog+console
+StandardError=syslog+console
+[Install]
+WantedBy=multi-user.target
