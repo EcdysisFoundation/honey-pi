@@ -1,2 +1,6 @@
 **.~vsd
 **.~vsdx
+**__pycache__
+**/env/
+**.idea
+
