@@ -16,8 +16,6 @@ Hive Pi is an MQTT based data logger. Raspberry Pi's powered from PoE hats serve
 * One MQTT Broker (Server) 
 * One MQTT Data logger and dashboard
 
-
-
 ## Raspberry Pi Details
 
 The Raspberry Pi's run a python service to collect and submit data to the MQTT server.  It's powered via a PoE shield. This route was chosen so we would not have to worry about servicing batteries or cold weather battery operation problems.
@@ -33,7 +31,7 @@ Currently the following sensors are being evaluated:
 
 ### Wiring & Hardware
 
-Detailed software and hardware wiring can be found in raspberry-pi directory.
+Detailed software and hardware wiring can be found in hardware directory.
 
 ### Software
 
@@ -46,6 +44,36 @@ sudo systemctl enable audio-py.service
 sudo systemctl enable dht11-py.service
 sudo systemctl enable hx711-py.service
 ```
+
+#### Installation
+
+The Raspberry Pi can be configured in one of two methods:
+
+A. Manual install
+
+B. Clone an existing install
+
+##### A. Manual install
+
+1. **Burn raspian to an SD card.** To manually install, first burn a copy of raspian to an SD card. There are many tutorials on this.
+2. **Boot the image.** Install the SD card into the Raspberry Pi, and boot the Pi. You will need a keyboard, mouse, and monitor connected to the Pi.
+3. **Clone this repo.** Use GIT to clone the repo to /home/pi/ws . There are many tutorials on cloning a repo.
+4. **Install.** Install the raspberry pi software by copying the contents of 'raspberry-pi' to /home/pi/ws Then copy the three service files to '/lib/systemd/system/'
+5. **Enable**. Enable the software to start on boot. Run the following commands at a terminal.
+
+```
+sudo systemctl enable audio-py.service
+sudo systemctl enable dht11-py.service
+sudo systemctl enable hx711-py.service
+```
+
+##### B. Manual Install
+
+1. **Clone.** Clone an existing install by using a linux device to dd one card onto another.
+
+### Pallet Configuration [ IMPORTANT ]
+
+Rather than tracking the SN of each Pi, we simply have an enviroment file in the /home/pi/ws directory of the Raspberry pi. The **enviroment.conf** file contains a line called "**PALLET_NUMBER**" this needs to be set on each device.
 
 
 
@@ -60,62 +88,38 @@ The mqtt server will run the MTIG stack on a Linux system.
 
 The Linux stack is run in a docker-compose container for quick setup.
 
+#### Installation
+
+These instructions are specific to a LINUX computer.
+
+1. **Clone this repo.** Use GIT to clone this repo.
+
+2. **Install docker-compose.** Install docker and docker-compose onto the computer.
+
+3. **Install the service.** Copy the .service files to '/lib/systemd/system/'
+
+4. **Start the service.** Enable and start the service by running the following command from a terminal:
+
+   ```
+   sudo systemctl enable honeypi.service
+   sudo systemctl start honeypi.service
+   ```
 
 
-## MQTT Data Logging
 
-Hive Pi logs sensor data on a device / pallet / sensor hierarchy. 
+# How To Use
 
-Example topics are:
+After setting up a server and running it as a service, use the following to access data:
 
-```
-/hive-pi/pallet/PALLET/temp
-                        /humidity
-                        /weight
-                        /audio
-```
+1. **Grafana** --> Go to the following link: http://honey-pi.local:1111
 
-And example payload for each topic is:
+   Grafana is used to plot all the data (except audio) for each hive. It has many powerful features.
 
-**Temperature topic data**
+2. **Jupyter Notebook** --> Go to the following link: http://honey-pi.local:/1111
 
-```json
-{
-    "timestamp":1591225410
-   	"temp_c":47.3
-}
-```
-**Humidity topic data**
-```json
-{
-    "timestamp":1591225410
-   	"humidity_r":0.581
-}
-```
-**Weight topic data**
-```json
-{
-    "timestamp":1591225410
-   	"weight_raw":5154
-   	"weight_lbs":241.23
-}
-```
-**Audio topic data**
+   Jupyter notebook is a scientific notebook that has access to all the data. It can be used to visualize and analyze any data that has been logged. 
 
-```json
-{
-    "timestamp":1591225410
-   	"filename":"pallet_2_hive_3_1591225410.wav"
-   	"blob": "A39jf983fd..."
-   	"fft":{
-        "freq_range":[1,2,4,2123,24]
-        "freq_amp":[22,34,212,541,212]
-        "freq_phase_rad":[.23,.341,.214.134]
-   	}
-}
-```
-
-
+These pages can be accessed by any computer on the local network. Some windows computers may have problems with name resolution. If so, substitute the honey-pi.local with the IP of the server. 
 
 
 
