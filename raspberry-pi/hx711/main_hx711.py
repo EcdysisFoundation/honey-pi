@@ -1,4 +1,4 @@
-import json, time, board, adafruit_dht
+import json, time, adafruit_dht
 import os, pickle
 
 from mqtt.mqtt_setup import mqtt_setup, publish_sensor_data
@@ -17,7 +17,10 @@ def main():
     # Setup the hx711 sensors
     # Hive, DOUT, SCK
     client.on_message = on_message
-    client.subscribe("honey_pi/pallet/" + PALLET + "/calibrate/#", qos=1)
+    sub_str = "honey_pi/pallet/" + str(PALLET) + "/calibrate/#"
+    print("sub_str: ", sub_str)
+    client.subscribe(sub_str, qos=1)
+
     startup()
 
     next_reading = time.time()
@@ -47,14 +50,12 @@ def read_sensor():
                 sensor_data['pallet'] = int(PALLET)
                 sensor_data['hive_local'] = int(hive)
                 sensor_data['hive_global'] = ((PALLET - 1)*4) + int(hive)
-                publish_sensor_data("honey_pi/pallet/" + PALLET + "/hive/" + hive + "/hx711", sensor_data)
+                publish_sensor_data("honey_pi/pallet/" + str(PALLET) + "/hive/" + hive + "/hx711", sensor_data)
                 break  # This attempt was successful, onto the next sensor
             except Exception as e:
                 # This attempt wasn't successful. Log the warning.
-                publish_sensor_data("honey_pi/warning/pallet/" + PALLET, str(e))
-            # We should never get here if we successfully read the sensor data.
-            # If we do, it's an error
-            publish_sensor_data("honey_pi/errors/pallet/" + PALLET, str(e))
+                publish_sensor_data("honey_pi/warning/pallet/" + str(PALLET), str(e) + " hive: " + str(hive))
+                break # onto the next sensor
 
 
 def startup():
@@ -65,15 +66,17 @@ def startup():
                      ("3", 26, 6),
                      ("4", 25, 6)
                      )
-
+    print("startup")
     for hive, dout, sck in hx711_sensors:
         try:
             hx_device = HX711(dout_pin=dout, pd_sck_pin=sck)
             hx711_devices.append((hive, hx_device))
 
         except Exception as e:
-            publish_sensor_data("honey_pi/errors/pallet/" + PALLET, "Could not configure the hx711 device")
+            publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), "Could not configure the hx711 device")
+            publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), str(e) + "hive: " + str(hive) )
 
+    print("startup: checking for swap file")
     # Check if we have swap file (calibration) if not, we do not have any calibration.
     if os.path.isfile(swap_file_name):
         print('calibration file found')
@@ -81,20 +84,21 @@ def startup():
             hx711_devices = pickle.load(swap_file)
             # now we loaded the state before the Pi restarted.
     else:
+        print("startup: No swap file")
         # There is no swap file. Push an error.
-        publish_sensor_data("honey_pi/errors/pallet/" + PALLET, "No wap file found on startup.")
+        publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), "No swap file found on startup.")
 
 
 def calibrate_zero_weight(hive_num):
     # This routine is called when we receive a message from
     # honey_pi/PALLET/calibrate/tare
     try:
-        hive, hx = hx711_devices[int(hive_num)]
+        hive, hx = hx711_devices[int(hive_num-1)]
         err = hx.zero()
         if err:
-            raise print('Tare is unsuccessful for hive' + str(hive_num))
+            print('Tare is unsuccessful for hive ' + str(hive_num))
     except Exception as e:
-        publish_sensor_data("honey_pi/errors/pallet/" + PALLET, str(e))
+        publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), str(e) + " hive: " + str(hive_num))
 
 
 def calibrate_known_weight(weight_kg, hive_num):
@@ -102,7 +106,7 @@ def calibrate_known_weight(weight_kg, hive_num):
     # Then reload the 'startup' routine to set the file appropriately.
     # honey_pi/PALLET/calibrate/weight --> weight
     try:
-        hive, hx = hx711_devices[int(hive_num)]
+        hive, hx = hx711_devices[int(hive_num-1)]
         reading = hx.get_data_mean(5)
         ratio = reading / weight_kg
         hx.set_scale_ratio(ratio)
@@ -113,36 +117,46 @@ def calibrate_known_weight(weight_kg, hive_num):
             os.fsync(swap_file.fileno())
             # you have to flush, fsynch and close the file all the time.
             # This will write the file to the drive. It is slow but safe.
-        print('startup')
+        print('about to execute startup from cal weight')
         startup()
-        publish_sensor_data("honey_pi/"+PALLET+"/notifications", "Successfully calibrated hive: " + str(hive_num))
+        publish_sensor_data("honey_pi/"+str(PALLET)+"/notifications/", "Successfully calibrated hive: " + str(hive_num))
+        print("notification sent")
+
     except Exception as e:
-        publish_sensor_data("honey_pi/errors/pallet/" + PALLET, str(e))
+        print('failed to calibrate')
+        publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), str(e) + " hive: " + str(hive_num))
 
 
 def on_message(client, userdata, msg):
+    print("new message")
     try:
         if msg.topic == "honey_pi/pallet/" + str(PALLET) + "/calibrate/tare":
             print("zero message received")
-            calibrate_zero_weight(int(msg.payload))
+            payload = msg.payload.decode("utf-8")
+            calibrate_zero_weight(int(payload))
         elif msg.topic == "honey_pi/pallet/" + str(PALLET) + "/calibrate/weight":
             print("weight_kg message received")
             try:
-                hive_num, weight = str(msg.payload).split(",")
+                payload = msg.payload.decode("utf-8")
+                hive_num, weight = payload.split(",")
+                hive_num = int(hive_num)
+                weight = int(weight)
                 calibrate_known_weight(weight_kg=weight, hive_num=hive_num)
                 print("weight_kg complete")
             except Exception as e:
-                publish_sensor_data("honey_pi/errors/pallet/" + PALLET, str(e))
-                publish_sensor_data("honey_pi/errors/pallet/" + PALLET, "calibration payload likely missing weight and hive")
+                print("calibration error")
+                publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), str(e))
+                publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), "calibration payload likely missing weight and hive")
         else:
             print("unknown message topic")
 
     except Exception as e:
-        publish_sensor_data("honey_pi/errors/pallet/" + PALLET, str(e))
+        publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), str(e))
 
 
 if __name__ == '__main__':
     # Check if the PALLET var has been set
     _ = int(PALLET)
-
+    print("starting main")
     main()
+
