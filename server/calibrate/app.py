@@ -47,7 +47,7 @@ class HoneyPiCalibrator:
         """
         pallet_number = self.pallet_number_entry.get()
         hive_number = self.hive_number_entry.get()
-        self.mqtt_client.publish(topic="honey_pi/pallet/" + str(pallet_number) +"/hive/" + hive_number + "/calibrate/tare",payload="0")
+        self.mqtt_client.publish(topic="honey_pi/pallet/" + str(pallet_number) + "/calibrate/tare",payload=hive_number)
 
     def calibrate(self):
         """
@@ -56,7 +56,7 @@ class HoneyPiCalibrator:
         pallet_number = self.pallet_number_entry.get()
         hive_number = self.hive_number_entry.get()
         calibrated_weight = self.cal_weight_entry.get()
-        self.mqtt_client.publish(topic="honey_pi/pallet/" + str(pallet_number) +"/hive/" + hive_number + "/calibrate/weight",payload=hive_number +","+calibrated_weight)
+        self.mqtt_client.publish(topic="honey_pi/pallet/" + str(pallet_number) + "/calibrate/weight",payload=hive_number +","+calibrated_weight)
 
     def validate(self, new_text):
         # Ensure the entry is a number
