@@ -4,7 +4,7 @@ from mqtt.mqtt_setup import mqtt_setup, publish_sensor_data
 import os
 PALLET = int(os.getenv('PALLET_NUMBER'))
 
-SAMPLE_INTERVAL = 2
+SAMPLE_INTERVAL = 10
 client = mqtt_setup()
 dht_devices = list()
 
@@ -23,7 +23,7 @@ def main():
             dht_devices.append( (hive,dht_device) )
         except Exception as e:
             print("Error initializing dht11 sensor " + hive)
-            publish_sensor_data("honey_pi/errors/pallet/" + PALLET,  str(e))
+            publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET),  str(repr(e)) + "hive: " + str(hive) )
 
     next_reading = time.time()
     while True:
@@ -48,13 +48,11 @@ def read_sensor():
                 sensor_data['hive_local'] = int(hive)
                 sensor_data['hive_global'] = ((PALLET - 1)*4) + int(hive)
                 sensor_data['pallet'] = PALLET
-                publish_sensor_data("honey_pi/pallet/" + PALLET + "/hive/" + hive + "/dht11", sensor_data)
+                publish_sensor_data("honey_pi/pallet/" + str(PALLET) + "/hive/" + hive + "/dht11", sensor_data)
                 break  # Completed this attempt successfully, go onto the next sensor
             except Exception as e:
-                publish_sensor_data("honey_pi/warnings/pallet/" + PALLET, str(e))
-            # We should never get here if we successfully read the sensor data.
-            # If we do, it's an error
-            publish_sensor_data("honey_pi/errors/pallet/" + PALLET, str(e))
+                publish_sensor_data("honey_pi/warnings/pallet/" + str(PALLET), str(repr(e)) + "hive: " + str(hive))
+                break
 
 
 
