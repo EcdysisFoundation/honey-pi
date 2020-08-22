@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    folder: ''
+    org_id: 1
+    type: 'file'
+    options:
+      path: '/var/lib/grafana/dashboards'
+    allowUiUpdates: true

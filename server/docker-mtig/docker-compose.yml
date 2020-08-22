@@ -1,0 +1,81 @@
+version: '3.1'
+  
+services:
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    tty: true
+    ports:
+      - 9001:9001
+      - 1883:1883
+    restart: always
+
+  influxdb:
+    image: influxdb
+    container_name: influxdb
+    restart: always
+    environment:
+      - INFLUXDB_ADMIN_ENABLED=true
+      - INFLUXDB_USER=influx
+      - INFLUXDB_USER_PASSWORD=influx
+      - INFLUXDB_DB=influx
+    ports:
+     - "8083"
+     - "8086"
+    volumes:
+     - influxdb-data:/var/lib/influxdb
+ 
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    ports:
+     - "${GRAFANA_PORT}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-worldmap-panel,grafana-piechart-panel
+
+    volumes:
+      - grafana-db:/var/lib/grafana
+      - grafana-log:/var/log/grafana
+      - grafana-conf:/etc/grafana
+      - ./provisioning:/etc/grafana/provisioning
+      - ./dashboards:/var/lib/grafana/dashboards
+    links:
+      - influxdb
+
+  telegraf:
+    container_name: telegraf
+    image: telegraf
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf
+    restart: always
+    links:
+      - influxdb
+      - mosquitto
+
+  scipynotebook:
+    build:
+      context: ./notebook
+    container_name: scipynotebook
+    image: jupyter/scipy-notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - notebook:/home/jovyan/work
+    links:
+      - influxdb
+
+volumes:
+  grafana-db:
+  grafana-log:
+  grafana-conf:
+  influxdb-data:
+  mosquitto-data:
+  mosquitto-log:
+  notebook:

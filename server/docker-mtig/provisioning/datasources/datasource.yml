@@ -1,0 +1,11 @@
+influxapiVersion: 1
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    database: influx
+    user: influx
+    password: influx
+    url: http://influxdb:8086
+    isDefault: true
+    editable: true

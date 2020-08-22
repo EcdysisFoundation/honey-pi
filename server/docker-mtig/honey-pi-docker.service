@@ -1,0 +1,15 @@
+#Place file in /etc/systemd/system/
+[Unit]
+Description=Honey Pi Docker Container
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+WorkingDirectory=/home/mqtt-user/ws/honey-pi/server/docker-mtig
+ExecStart=/usr/local/bin/docker-compose up 
+ExecStop=/usr/local/bin/docker-compose stop 
+
+[Install]
+WantedBy=multi-user.target
+
