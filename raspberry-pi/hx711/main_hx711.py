@@ -119,7 +119,7 @@ def calibrate_known_weight(weight_kg, hive_num):
             # This will write the file to the drive. It is slow but safe.
         print('about to execute startup from cal weight')
         startup()
-        publish_sensor_data("honey_pi/"+str(PALLET)+"/notifications/", "Successfully calibrated hive: " + str(hive_num))
+        publish_sensor_data("honey_pi/notifications/pallet/"+str(PALLET)+"/", "Successfully calibrated hive: " + str(hive_num))
         print("notification sent")
 
     except Exception as e:

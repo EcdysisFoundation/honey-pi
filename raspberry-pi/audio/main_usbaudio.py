@@ -7,9 +7,9 @@ import numpy as np
 import os
 PALLET = int(os.getenv('PALLET_NUMBER'))
 
-FS = 11000               # Sample frequency
-REC_TIME = 30            # Seconds
-SAMPLE_INTERVAL = 20*60  # Seconds
+FS = 44100               # Sample rate frequency
+REC_TIME = 2 #30            # Seconds
+SAMPLE_INTERVAL = 5 # 20*60  # Seconds
 
 client = mqtt_setup()
 dht_devices = list()
@@ -35,14 +35,13 @@ def main():
 
 
 def read_sensor():
+    print("Reading Sensor")
     for hive, microphone in microphones:
         sensor_data = dict()
         try:
             sd.default.device = microphone
             sd.default.samplerate = FS
-            sd.default.channels = 1
-
-            recording = sd.rec(int(REC_TIME * FS), blocking=True)
+            recording = sd.rec(int(REC_TIME * FS), channels=1, blocking=True)
 
             N = recording.shape[0]
             L = N / FS
@@ -62,9 +61,9 @@ def read_sensor():
 
         except Exception as e:
             print("Error with microphone")
-            publish_sensor_data("honey_pi/errors/pallet/" + PALLET, str(e))
+            publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), str(e) + " hive: " + str(hive))
 
-        publish_sensor_data("honey_pi/pallet/" + PALLET + "/hive/" + hive + "/audio", sensor_data)
+        publish_sensor_data("honey_pi/pallet/" + str(PALLET) + "/hive/" + hive + "/audio", sensor_data)
 
 
 if __name__ == '__main__':

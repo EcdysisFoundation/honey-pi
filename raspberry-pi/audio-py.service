@@ -8,13 +8,11 @@ Conflicts=getty@tty1.service
 [Service]
 Type=simple
 WorkingDirectory=/home/pi/ws/
-#PYTHONPATH=/home/pi/ws/
-#PALLET_NUMBER=1
 User=pi
 ExecStart=/usr/bin/python3 /home/pi/ws/audio/main_usbaudio.py
 EnvironmentFile=/home/pi/ws/environment.conf
 StandardInput=tty-force
-#Restart=always
+Restart=always
 StandardOutput=syslog+console
 StandardError=syslog+console
 [Install]
