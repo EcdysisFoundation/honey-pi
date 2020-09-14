@@ -5,11 +5,13 @@ import matplotlib.pyplot as plt
 from scipy import signal
 import numpy as np
 import os
+import subprocess as sub
+
 PALLET = int(os.getenv('PALLET_NUMBER'))
 
 FS = 44100               # Sample rate frequency
-REC_TIME = 2 #30            # Seconds
-SAMPLE_INTERVAL = 5 # 20*60  # Seconds
+REC_TIME =  30           # Seconds
+SAMPLE_INTERVAL = 60*60  # Seconds// every hour
 
 client = mqtt_setup()
 dht_devices = list()
@@ -20,10 +22,11 @@ def main():
     # Setup the microphones
     # Hive number, USB device number
     global microphones
-    microphones = (("1", 0),
-                   ("2", 1),
-                   ("3", 2),
-                   ("4", 3))
+
+    microphones = (("1", "MyCard1"), # hive, microphone_dev
+                   ("2", "MyCard2"),
+                   ("3", "MyCard3"),
+                   ("4", "MyCard4"))
 
     next_reading = time.time()
     while True:
@@ -36,10 +39,22 @@ def main():
 
 def read_sensor():
     print("Reading Sensor")
-    for hive, microphone in microphones:
+    for hive, microphone_dev in microphones:
         sensor_data = dict()
         try:
-            sd.default.device = microphone
+            res = sub.check_output("cat /proc/asound/cards", shell=True).decode('utf-8')
+            res_arr = res.split("\n")
+            
+            card_id = None
+            for line in res_arr:
+                if microphone_dev in line:
+                    l_split = line.split(" ")
+                    card_id = l_split[1]
+                    break
+            if card_id is None:
+                raise ValueError("Audio recording - could not find the audio device for hive" + hive)
+
+            sd.default.device = "hw:" + card_id + ",0"
             sd.default.samplerate = FS
             recording = sd.rec(int(REC_TIME * FS), channels=1, blocking=True)
 
@@ -53,17 +68,21 @@ def read_sensor():
             amps = np.abs(yk)
 
             sensor_data['timestamp'] = int(round(time.time() * 1000))
-            sensor_data['frequencies'] = freqs.tolist()
-            sensor_data['amplitudes'] = amps.tolist()
+            sensor_data['frequencies'] = np.around(freqs, 2).tolist()
+            sensor_data['amplitudes'] = np.around(amps,2).tolist()
             sensor_data['hive_local'] = int(hive)
             sensor_data['hive_global'] = ((PALLET - 1) * 4) + int(hive)
             sensor_data['pallet'] = PALLET
+            publish_sensor_data("honey_pi/pallet/" + str(PALLET) + "/hive/" + hive + "/audio", sensor_data)
 
         except Exception as e:
             print("Error with microphone")
             publish_sensor_data("honey_pi/errors/pallet/" + str(PALLET), str(e) + " hive: " + str(hive))
 
-        publish_sensor_data("honey_pi/pallet/" + str(PALLET) + "/hive/" + hive + "/audio", sensor_data)
+        sd.default.device = None
+        freqs = None
+        amps = None
+
 
 
 if __name__ == '__main__':

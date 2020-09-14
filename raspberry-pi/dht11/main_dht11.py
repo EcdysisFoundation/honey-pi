@@ -4,7 +4,7 @@ from mqtt.mqtt_setup import mqtt_setup, publish_sensor_data
 import os
 PALLET = int(os.getenv('PALLET_NUMBER'))
 
-SAMPLE_INTERVAL = 10
+SAMPLE_INTERVAL = 10 * 60
 client = mqtt_setup()
 dht_devices = list()
 

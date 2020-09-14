@@ -8,7 +8,7 @@ from statistics import StatisticsError
 PALLET = int(os.getenv('PALLET_NUMBER'))
 swap_file_name = 'hx711_calibration.swp'
 
-SAMPLE_INTERVAL = 2
+SAMPLE_INTERVAL = 10 * 60 # Seconds
 client = mqtt_setup()
 hx711_devices = list()
 
@@ -54,7 +54,7 @@ def read_sensor():
                 break  # This attempt was successful, onto the next sensor
             except Exception as e:
                 # This attempt wasn't successful. Log the warning.
-                publish_sensor_data("honey_pi/warning/pallet/" + str(PALLET), str(e) + " hive: " + str(hive))
+                publish_sensor_data("honey_pi/warnings/pallet/hx711/" + str(PALLET), str(e) + " hive: " + str(hive))
                 break # onto the next sensor
 
 
