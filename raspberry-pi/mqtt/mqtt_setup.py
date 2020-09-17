@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import json
 
 ACCESS_TOKEN = ""
-MQTT_BROKER = "mqtt-server01"
+MQTT_BROKER = "mqtt-server01.local"
 MQTT_PORT = 1883
 
 client = None
